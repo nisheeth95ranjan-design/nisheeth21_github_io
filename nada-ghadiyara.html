@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nāda Ghaḍiyāra • Tonal Clock</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    min-height:100vh;background:#0D0A06;
+    font-family:Georgia,'Times New Roman',serif;
+    display:flex;flex-direction:column;align-items:center;
+    padding-bottom:40px;overflow-x:hidden;position:relative;
+  }
+  ::-webkit-scrollbar{width:4px;background:#0D0800}
+  ::-webkit-scrollbar-thumb{background:#3D2200}
+  button{cursor:pointer;font-family:Georgia,'Times New Roman',serif}
+  button:hover{filter:brightness(1.2)}
+  input:focus{outline:none;border-color:#8B6914!important;box-shadow:0 0 8px rgba(139,105,20,0.3)}
+
+  /* Rangoli bg */
+  #rangoli-bg{position:fixed;inset:0;opacity:.07;pointer-events:none;z-index:0}
+
+  /* Title */
+  #title-wrap{text-align:center;padding:28px 0 10px;position:relative;z-index:1;width:100%}
+  #title-box{
+    background:linear-gradient(180deg,#3D2200 0%,#1A0E00 100%);
+    border:1px solid #5C3800;border-radius:6px;
+    display:inline-block;padding:14px 48px;
+    box-shadow:0 0 32px rgba(184,134,11,.18),inset 0 1px 0 rgba(255,215,0,.12);
+  }
+  .t-kannada{font-size:11px;letter-spacing:8px;color:#8B6914;text-transform:uppercase;margin-bottom:4px}
+  .t-main{font-size:26px;letter-spacing:3px;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,.5);font-weight:normal}
+  .t-sub{font-size:10px;letter-spacing:6px;color:#8B6914;margin-top:5px}
+
+  /* Panels */
+  .panel{
+    position:relative;z-index:2;
+    background:linear-gradient(160deg,#1E1206 0%,#0D0800 100%);
+    border:1px solid #4A2E00;border-radius:8px;padding:20px;
+    box-shadow:0 0 48px rgba(184,134,11,.12),inset 0 0 32px rgba(0,0,0,.6);
+    margin:10px 0 8px;
+  }
+
+  /* Clock */
+  #clock-panel{padding:20px}
+  #clock-svg{display:block;cursor:default}
+
+  /* Swara panel */
+  #swara-panel{width:320px;padding:16px 20px;margin-bottom:10px;box-shadow:0 0 24px rgba(184,134,11,.1)}
+  #swara-name-big{font-size:44px;font-style:italic;color:#FFD700;letter-spacing:3px;text-shadow:0 0 24px rgba(255,215,0,.6);line-height:1;text-align:center}
+  #swara-full{color:#CD853F;font-size:13px;letter-spacing:3px;margin-top:3px;text-align:center}
+  #swara-meta{color:#8B6914;font-size:11px;letter-spacing:4px;margin-top:2px;display:flex;justify-content:center;gap:16px}
+  #swara-buttons{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:10px}
+  .swara-btn{
+    background:#1A0E00;border:1px solid #3D2200;color:#8B6914;
+    padding:5px 7px;border-radius:3px;font-size:11px;
+    font-style:italic;min-width:40px;transition:all .15s;letter-spacing:1px;
+  }
+  .swara-btn.current{background:#2E1A00;border-color:#8B6914;color:#CD853F}
+  .swara-btn.active{background:#5C3800;border-color:#FFD700;color:#FFD700;box-shadow:0 0 8px rgba(255,215,0,.4)}
+
+  /* Controls */
+  #controls{display:flex;gap:8px;margin-bottom:10px;z-index:2;position:relative}
+  .ctrl-btn{border-radius:4px;padding:9px 14px;font-size:11px;letter-spacing:1px;transition:all .2s;color:#E8D5A3}
+  #btn-play{background:linear-gradient(180deg,#CC770022 0%,#CC770011 100%);border:1px solid #CC770055}
+  #btn-save{background:linear-gradient(180deg,#00664422 0%,#00664411 100%);border:1px solid #00664455}
+  #btn-alarm{background:linear-gradient(180deg,#66003322 0%,#66003311 100%);border:1px solid #66003355}
+  #btn-save.flash{box-shadow:0 0 20px #006644}
+
+  /* Save toast */
+  #save-toast{
+    display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);
+    background:#1A2200;border:1px solid #448800;color:#88FF44;
+    padding:8px 24px;border-radius:4px;font-size:13px;letter-spacing:2px;
+    z-index:500;box-shadow:0 0 16px rgba(68,136,0,.4);
+  }
+
+  /* Alarm input panel */
+  #alarm-panel{width:320px;padding:14px 20px;margin-bottom:10px;box-shadow:0 0 24px rgba(184,134,11,.08)}
+  #alarm-label{color:#8B6914;font-size:10px;letter-spacing:4px;margin-bottom:8px;text-align:center}
+  #alarm-row{display:flex;gap:8px;align-items:center}
+  #alarm-input{
+    flex:1;background:#0D0800;border:1px solid #4A2E00;
+    color:#E8D5A3;padding:7px 10px;border-radius:3px;
+    font-size:13px;font-family:Georgia,serif;
+  }
+  #alarm-set-btn{
+    background:#2E1A00;border:1px solid #8B6914;color:#FFD700;
+    padding:7px 14px;border-radius:3px;font-size:12px;letter-spacing:1px;
+  }
+  #alarm-error{color:#CC4400;font-size:11px;margin-top:5px;letter-spacing:1px;display:none}
+  #alarm-display{
+    display:none;margin-top:10px;padding:8px 12px;
+    background:#1A0E00;border:1px solid #5C3800;border-radius:3px;
+    justify-content:space-between;align-items:center;
+  }
+  #alarm-display.show{display:flex}
+  #alarm-info-swara{color:#FFD700;font-style:italic;font-size:14px}
+  #alarm-info-time{color:#8B6914;font-size:11px;margin-left:8px;letter-spacing:2px}
+  #alarm-info-snooze{color:#8B6914;font-size:10px;margin-left:6px}
+  #alarm-cancel{
+    background:none;border:1px solid #4A2E00;color:#8B6914;
+    width:22px;height:22px;border-radius:50%;font-size:11px;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* Drag hint */
+  #drag-hint{display:none;position:relative;z-index:2;color:#8B6914;font-size:11px;letter-spacing:3px;margin-bottom:8px;font-style:italic}
+
+  /* Footer */
+  #footer{position:relative;z-index:2;color:#3D2200;font-size:10px;letter-spacing:4px;margin-top:4px;text-align:center}
+
+  /* Alarm overlay */
+  #alarm-overlay{
+    display:none;position:fixed;inset:0;z-index:1000;
+    background:rgba(10,6,2,.94);
+    flex-direction:column;align-items:center;justify-content:center;
+    font-family:Georgia,serif;
+  }
+  #alarm-overlay.show{display:flex}
+  .pulse-ring{
+    position:absolute;width:220px;height:220px;border-radius:50%;
+    border:2px solid #FFD700;left:50%;top:50%;margin-left:-110px;margin-top:-110px;
+  }
+  #alarm-bell{font-size:64px;margin-bottom:12px}
+  #alarm-swara-big{color:#FFD700;font-size:52px;font-style:italic;letter-spacing:2px;margin-bottom:6px}
+  #alarm-swara-full{color:#CD853F;font-size:17px;letter-spacing:4px;margin-bottom:4px}
+  #alarm-swara-freq{color:#8B6914;font-size:14px;letter-spacing:2px;margin-bottom:6px}
+  #alarm-time-display{color:#E8D5A3;font-size:22px;letter-spacing:3px;margin-bottom:24px}
+  #alarm-snooze-count{color:#8B6914;font-size:13px;margin-bottom:16px;letter-spacing:2px;display:none}
+  #alarm-btns{display:flex;gap:20px}
+  #btn-snooze{background:#1A1206;border:1px solid #8B6914;color:#E8D5A3;padding:12px 28px;border-radius:4px;font-size:16px;letter-spacing:1px}
+  #btn-stop{background:#3D1A00;border:1px solid #CC4400;color:#FFB88C;padding:12px 28px;border-radius:4px;font-size:16px;letter-spacing:1px}
+
+  @keyframes pulse-ring{0%{transform:scale(.8);opacity:.8}100%{transform:scale(2.2);opacity:0}}
+  @keyframes bell-shake{0%,100%{transform:rotate(0)}15%{transform:rotate(-18deg)}30%{transform:rotate(18deg)}45%{transform:rotate(-12deg)}60%{transform:rotate(12deg)}75%{transform:rotate(-6deg)}}
+</style>
+</head>
+<body>
+
+<!-- Rangoli tiled background -->
+<svg id="rangoli-bg" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="rng" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+      <circle cx="40" cy="40" r="2" fill="#FFD700"/>
+      <circle cx="40" cy="40" r="12" fill="none" stroke="#FFD700" stroke-width="0.6"/>
+      <circle cx="40" cy="40" r="22" fill="none" stroke="#CD853F" stroke-width="0.4"/>
+      <circle cx="70" cy="40" r="1.5" fill="#B8860B"/>
+      <circle cx="61.21" cy="61.21" r="1.5" fill="#B8860B"/>
+      <circle cx="40" cy="70" r="1.5" fill="#B8860B"/>
+      <circle cx="18.79" cy="61.21" r="1.5" fill="#B8860B"/>
+      <circle cx="10" cy="40" r="1.5" fill="#B8860B"/>
+      <circle cx="18.79" cy="18.79" r="1.5" fill="#B8860B"/>
+      <circle cx="40" cy="10" r="1.5" fill="#B8860B"/>
+      <circle cx="61.21" cy="18.79" r="1.5" fill="#B8860B"/>
+      <path d="M40,18 L43,37 L40,40 L37,37 Z" fill="#CD853F" opacity="0.5"/>
+      <path d="M62,40 L43,43 L40,40 L43,37 Z" fill="#CD853F" opacity="0.5"/>
+      <path d="M40,62 L37,43 L40,40 L43,43 Z" fill="#CD853F" opacity="0.5"/>
+      <path d="M18,40 L37,37 L40,40 L37,43 Z" fill="#CD853F" opacity="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#rng)"/>
+</svg>
+
+<!-- Alarm Overlay -->
+<div id="alarm-overlay">
+  <div class="pulse-ring" style="animation:pulse-ring 1.8s ease-out 0s infinite"></div>
+  <div class="pulse-ring" style="animation:pulse-ring 1.8s ease-out 0.6s infinite"></div>
+  <div class="pulse-ring" style="animation:pulse-ring 1.8s ease-out 1.2s infinite"></div>
+  <div id="alarm-bell" style="animation:bell-shake 0.7s ease-in-out infinite">🔔</div>
+  <div id="alarm-swara-big"></div>
+  <div id="alarm-swara-full"></div>
+  <div id="alarm-swara-freq"></div>
+  <div id="alarm-time-display"></div>
+  <div id="alarm-snooze-count"></div>
+  <div id="alarm-btns">
+    <button id="btn-snooze" onclick="handleSnooze()">😴 SNOOZE</button>
+    <button id="btn-stop" onclick="handleStop()">✋ STOP</button>
+  </div>
+</div>
+
+<!-- Save Toast -->
+<div id="save-toast"></div>
+
+<!-- Title -->
+<div id="title-wrap">
+  <div id="title-box">
+    <div class="t-kannada">ನಾದ ಘಡಿಯಾರ</div>
+    <div class="t-main">Nāda Ghaḍiyāra</div>
+    <div class="t-sub">NĀDA GHAḌIYĀRA • TONAL CLOCK</div>
+  </div>
+</div>
+
+<!-- Clock Panel -->
+<div class="panel" id="clock-panel" style="position:relative">
+  <!-- corner filigree SVGs -->
+  <svg width="44" height="44" style="position:absolute;left:0;top:0;opacity:.55;pointer-events:none" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/><path d="M4,4 Q14,14 24,24" stroke-dasharray="2,3"/><circle cx="24" cy="24" r="3" fill="none" stroke="#CD853F" stroke-width="0.6"/><path d="M14,14 Q18,10 22,14 Q26,18 22,22"/><path d="M14,14 Q10,18 14,22 Q18,26 14,30"/></g></svg>
+  <svg width="44" height="44" style="position:absolute;right:0;top:0;opacity:.55;pointer-events:none;transform:rotate(90deg)" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/><path d="M4,4 Q14,14 24,24" stroke-dasharray="2,3"/><circle cx="24" cy="24" r="3" fill="none" stroke="#CD853F" stroke-width="0.6"/><path d="M14,14 Q18,10 22,14 Q26,18 22,22"/><path d="M14,14 Q10,18 14,22 Q18,26 14,30"/></g></svg>
+  <svg width="44" height="44" style="position:absolute;left:0;bottom:0;opacity:.55;pointer-events:none;transform:rotate(270deg)" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/><path d="M4,4 Q14,14 24,24" stroke-dasharray="2,3"/><circle cx="24" cy="24" r="3" fill="none" stroke="#CD853F" stroke-width="0.6"/><path d="M14,14 Q18,10 22,14 Q26,18 22,22"/><path d="M14,14 Q10,18 14,22 Q18,26 14,30"/></g></svg>
+  <svg width="44" height="44" style="position:absolute;right:0;bottom:0;opacity:.55;pointer-events:none;transform:rotate(180deg)" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/><path d="M4,4 Q14,14 24,24" stroke-dasharray="2,3"/><circle cx="24" cy="24" r="3" fill="none" stroke="#CD853F" stroke-width="0.6"/><path d="M14,14 Q18,10 22,14 Q26,18 22,22"/><path d="M14,14 Q10,18 14,22 Q18,26 14,30"/></g></svg>
+
+  <svg id="clock-svg" width="320" height="320" viewBox="0 0 320 320">
+    <defs>
+      <radialGradient id="faceGrad" cx="50%" cy="45%">
+        <stop offset="0%" stop-color="#2A1800"/>
+        <stop offset="100%" stop-color="#0D0800"/>
+      </radialGradient>
+      <radialGradient id="petalGrad" cx="50%" cy="30%">
+        <stop offset="0%" stop-color="#CC6600"/>
+        <stop offset="100%" stop-color="#7A3500"/>
+      </radialGradient>
+      <radialGradient id="centerGrad" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#FFD700"/>
+        <stop offset="100%" stop-color="#B8860B"/>
+      </radialGradient>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="softglow">
+        <feGaussianBlur stdDeviation="5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <!-- Face -->
+    <circle cx="160" cy="160" r="140" fill="url(#faceGrad)" stroke="#4A2E00" stroke-width="1.5"/>
+    <circle cx="160" cy="160" r="136" fill="none" stroke="#3D2200" stroke-width="0.5"/>
+    <!-- Rings -->
+    <circle cx="160" cy="160" r="110" fill="none" stroke="#2E1800" stroke-width="0.4"/>
+    <circle cx="160" cy="160" r="122" fill="none" stroke="#5C3800" stroke-width="0.8"/>
+    <circle cx="160" cy="160" r="132" fill="none" stroke="#2E1800" stroke-width="0.4" stroke-dasharray="4,6"/>
+    <!-- Tick marks generated by JS -->
+    <g id="tick-marks"></g>
+    <!-- Swara labels generated by JS -->
+    <g id="swara-labels"></g>
+    <!-- Lotus petals generated by JS -->
+    <g id="lotus"></g>
+    <!-- Hands -->
+    <g id="hour-hand" filter="url(#softglow)" style="cursor:grab"></g>
+    <g id="minute-hand"></g>
+    <g id="second-hand"></g>
+    <!-- Drag hint -->
+    <text id="drag-hint-svg" x="160" y="292" text-anchor="middle" font-size="7" fill="#3D2200" font-family="Georgia,serif" letter-spacing="1">drag hour hand</text>
+  </svg>
+</div>
+
+<!-- Swara Display Panel -->
+<div class="panel" id="swara-panel">
+  <svg width="36" height="36" style="position:absolute;left:0;top:0;opacity:.55;pointer-events:none" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/></g></svg>
+  <svg width="36" height="36" style="position:absolute;right:0;top:0;opacity:.55;pointer-events:none;transform:rotate(90deg)" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/><circle cx="44" cy="4" r="1.5" fill="#B8860B"/><circle cx="4" cy="44" r="1.5" fill="#B8860B"/></g></svg>
+  <div id="swara-name-big">Sa</div>
+  <div id="swara-full">Ṣaḍja</div>
+  <div id="swara-meta">
+    <span id="swara-freq">261.63 Hz</span>
+    <span style="color:#4A2E00">•</span>
+    <span id="swara-time">--:--:--</span>
+  </div>
+  <div id="swara-buttons"></div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="ctrl-btn" id="btn-play" onclick="handlePlaySwara()">▶ PLAY SWARA</button>
+  <button class="ctrl-btn" id="btn-save" onclick="handleSaveTime()">💾 SAVE TIME</button>
+  <button class="ctrl-btn" id="btn-alarm" onclick="handleSetAlarmFromHand()">🔔 SET ALARM</button>
+</div>
+
+<!-- Alarm Input Panel -->
+<div class="panel" id="alarm-panel">
+  <svg width="32" height="32" style="position:absolute;left:0;top:0;opacity:.55;pointer-events:none" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/></g></svg>
+  <svg width="32" height="32" style="position:absolute;right:0;top:0;opacity:.55;pointer-events:none;transform:rotate(90deg)" viewBox="0 0 48 48"><g stroke="#B8860B" fill="none" stroke-width="0.8"><path d="M4,4 Q8,12 12,8 Q16,4 20,8 Q24,12 28,8 Q32,4 36,8 Q40,12 44,4"/><path d="M4,4 Q12,8 8,12 Q4,16 8,20 Q12,24 8,28 Q4,32 8,36 Q12,40 4,44"/><circle cx="4" cy="4" r="2.5" fill="#B8860B"/></g></svg>
+  <div id="alarm-label">─── SET ALARM ───</div>
+  <div id="alarm-row">
+    <input id="alarm-input" type="text" placeholder="e.g. 7 or 7:30" autocomplete="off"/>
+    <button id="alarm-set-btn" onclick="handleAlarmSet()">SET</button>
+  </div>
+  <div id="alarm-error"></div>
+  <div id="alarm-display">
+    <div>
+      <span id="alarm-info-swara"></span>
+      <span id="alarm-info-time"></span>
+      <span id="alarm-info-snooze"></span>
+    </div>
+    <button id="alarm-cancel" onclick="cancelAlarm()">✕</button>
+  </div>
+</div>
+
+<div id="drag-hint">↺ dragging — release to resume</div>
+<div id="footer">❧ ŚRĪ ŚAṄKARĀBHARAṆAM ❧</div>
+
+<script>
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const SWARAS = [
+  {hour:12,short:"Sa",  full:"Ṣaḍja",          freq:261.63,color:"#FFD700"},
+  {hour:1, short:"Ri",  full:"Ṛṣabha",          freq:293.66,color:"#FFC433"},
+  {hour:2, short:"Ga",  full:"Gāndhāra",         freq:329.63,color:"#FFB347"},
+  {hour:3, short:"Ma",  full:"Madhyama",         freq:349.23,color:"#FF9F40"},
+  {hour:4, short:"Pa",  full:"Pañcama",          freq:392.00,color:"#FF8C42"},
+  {hour:5, short:"Dha", full:"Dhaivata",         freq:440.00,color:"#FF7043"},
+  {hour:6, short:"Ni",  full:"Niṣāda",           freq:493.88,color:"#FF6B35"},
+  {hour:7, short:"Sa'", full:"Ṣaḍja (Tāra)",    freq:523.25,color:"#FFD700"},
+  {hour:8, short:"Ri'", full:"Ṛṣabha (Tāra)",   freq:587.33,color:"#FFC433"},
+  {hour:9, short:"Ga'", full:"Gāndhāra (Tāra)", freq:659.26,color:"#FFB347"},
+  {hour:10,short:"Ma'", full:"Madhyama (Tāra)",  freq:698.46,color:"#FF9F40"},
+  {hour:11,short:"Pa'", full:"Pañcama (Tāra)",   freq:783.99,color:"#FF8C42"},
+];
+
+const ALARM_PHRASES = {
+  0: [[261.63,.35,8],[293.66,.3,6],[329.63,.3,6],[349.23,.3,5],[392,.35,7],[440,.3,6],[493.88,.3,6],[523.25,.5,10]],
+  1: [[261.63,.25,5],[293.66,.4,8],[329.63,.35,7],[392,.3,6],[440,.3,6],[493.88,.35,7],[523.25,.45,9]],
+  2: [[329.63,.4,9],[349.23,.3,6],[392,.35,7],[440,.35,7],[349.23,.25,5],[329.63,.5,10]],
+  3: [[349.23,.4,8],[392,.35,7],[440,.3,6],[493.88,.3,6],[523.25,.35,8],[493.88,.25,5],[440,.45,9]],
+  4: [[392,.4,9],[440,.3,7],[493.88,.3,6],[523.25,.3,7],[587.33,.35,8],[659.26,.5,10]],
+  5: [[440,.4,10],[493.88,.3,7],[523.25,.3,6],[587.33,.3,7],[523.25,.25,5],[493.88,.25,5],[440,.5,10]],
+  6: [[493.88,.35,9],[523.25,.4,8],[587.33,.3,6],[659.26,.3,7],[587.33,.25,5],[523.25,.45,9]],
+  7: [[523.25,.4,9],[493.88,.3,7],[440,.3,6],[392,.3,6],[349.23,.3,5],[329.63,.35,7],[293.66,.25,5],[261.63,.5,10]],
+  8: [[587.33,.4,9],[523.25,.3,7],[493.88,.3,6],[440,.3,6],[392,.35,7],[329.63,.45,9]],
+  9: [[659.26,.4,10],[587.33,.3,7],[523.25,.3,6],[493.88,.3,6],[440,.3,6],[392,.35,7],[349.23,.45,8]],
+  10:[[698.46,.4,9],[659.26,.3,7],[587.33,.3,6],[523.25,.3,6],[493.88,.3,6],[440,.35,7],[392,.45,9]],
+  11:[[783.99,.4,10],[698.46,.3,7],[659.26,.3,6],[587.33,.3,6],[523.25,.3,6],[493.88,.25,5],[440,.25,5],[392,.5,10]],
+};
+
+function getTotalPhraseDuration(idx){
+  const p=ALARM_PHRASES[idx]||ALARM_PHRASES[0];
+  return p.reduce((s,n)=>s+n[1],0);
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let isDragging=false, dragHour=null;
+let alarmHour=null, alarmActive=false, alarmFiring=false, snoozeCount=0;
+let savedEntry=null;
+let prevHour=null;
+let alarmPhraseTimer=null, snoozeTimer=null;
+const CX=160,CY=160,R=140;
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+function playSwara(freq,duration=1.2){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const now=ctx.currentTime;
+    const atk=.04,dec=.15,sus=.6,rel=.35;
+    function osc(f,g){
+      const o=ctx.createOscillator(),gn=ctx.createGain();
+      o.type="sine";o.frequency.setValueAtTime(f,now);
+      gn.gain.setValueAtTime(0,now);
+      gn.gain.linearRampToValueAtTime(g,now+atk);
+      gn.gain.linearRampToValueAtTime(g*sus,now+atk+dec);
+      gn.gain.setValueAtTime(g*sus,now+duration-rel);
+      gn.gain.linearRampToValueAtTime(0,now+duration);
+      o.connect(gn);gn.connect(ctx.destination);
+      o.start(now);o.stop(now+duration+.1);
+    }
+    osc(freq,.45);osc(freq*2,.12);osc(freq*3,.05);
+    setTimeout(()=>ctx.close(),(duration+.5)*1000);
+  }catch(e){}
+}
+
+function playGamakaNote(ctx,freq,startTime,dur,gamakaRange){
+  const cents=gamakaRange;
+  const up=freq*Math.pow(2,cents/1200);
+  const down=freq*Math.pow(2,-cents/1200);
+  const atk=.03,rel=Math.min(.12,dur*.3);
+  function makeOsc(f,g){
+    const o=ctx.createOscillator(),gn=ctx.createGain();
+    o.type="sine";
+    o.frequency.setValueAtTime(f,startTime);
+    o.frequency.linearRampToValueAtTime(f===freq?up:up*2,startTime+dur*.25);
+    o.frequency.linearRampToValueAtTime(f===freq?down:down*2,startTime+dur*.55);
+    o.frequency.linearRampToValueAtTime(f,startTime+dur*.8);
+    gn.gain.setValueAtTime(0,startTime);
+    gn.gain.linearRampToValueAtTime(g,startTime+atk);
+    gn.gain.setValueAtTime(g,startTime+dur-rel);
+    gn.gain.linearRampToValueAtTime(0,startTime+dur+.02);
+    o.connect(gn);gn.connect(ctx.destination);
+    o.start(startTime);o.stop(startTime+dur+.1);
+  }
+  makeOsc(freq,.38);
+  makeOsc(freq*2,.10);
+}
+
+function playAlarmPhrase(hourIndex,onDone){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const phrase=ALARM_PHRASES[hourIndex]||ALARM_PHRASES[0];
+    let t=ctx.currentTime+.05;
+    const overlap=.06;
+    phrase.forEach(([freq,dur,gamaka])=>{
+      playGamakaNote(ctx,freq,t,dur+overlap,gamaka);
+      t+=dur;
+    });
+    const total=getTotalPhraseDuration(hourIndex);
+    setTimeout(()=>{ctx.close();if(onDone)onDone();},(total+.5)*1000);
+  }catch(e){if(onDone)onDone();}
+}
+
+// ─── Clock Drawing ────────────────────────────────────────────────────────────
+function pt(angle,len){
+  return{x:CX+len*Math.cos(angle*Math.PI/180),y:CY+len*Math.sin(angle*Math.PI/180)};
+}
+
+function drawTicks(){
+  const g=document.getElementById("tick-marks");
+  g.innerHTML="";
+  for(let i=0;i<60;i++){
+    const isH=i%5===0;
+    const a=(i/60)*2*Math.PI-Math.PI/2;
+    const r1=isH?R-14:R-8,r2=R-4;
+    const x1=CX+r1*Math.cos(a),y1=CY+r1*Math.sin(a);
+    const x2=CX+r2*Math.cos(a),y2=CY+r2*Math.sin(a);
+    const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",x1);line.setAttribute("y1",y1);
+    line.setAttribute("x2",x2);line.setAttribute("y2",y2);
+    line.setAttribute("stroke",isH?"#8B6914":"#3D2200");
+    line.setAttribute("stroke-width",isH?"1.5":"0.5");
+    g.appendChild(line);
+  }
+}
+
+function drawSwaraLabels(activeIdx){
+  const g=document.getElementById("swara-labels");
+  g.innerHTML="";
+  SWARAS.forEach((sw,i)=>{
+    const a=(i/12)*2*Math.PI-Math.PI/2;
+    const lr=R-26;
+    const x=CX+lr*Math.cos(a),y=CY+lr*Math.sin(a);
+    const isActive=(sw.hour%12)===activeIdx;
+    const txt=document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x",x);txt.setAttribute("y",y);
+    txt.setAttribute("text-anchor","middle");txt.setAttribute("dominant-baseline","central");
+    txt.setAttribute("font-size",isActive?13:10);
+    txt.setAttribute("font-family","Georgia,serif");
+    txt.setAttribute("font-style","italic");
+    txt.setAttribute("fill",isActive?"#FFD700":"#8B6914");
+    if(isActive)txt.setAttribute("filter","url(#glow)");
+    txt.textContent=sw.short;
+    g.appendChild(txt);
+  });
+}
+
+function drawLotus(){
+  const g=document.getElementById("lotus");
+  g.innerHTML="";
+  const n=8,r=30;
+  for(let i=0;i<n;i++){
+    const a=(i/n)*2*Math.PI;
+    const px=CX+r*Math.cos(a),py=CY+r*Math.sin(a);
+    const cp1x=CX+(r*.6)*Math.cos(a-.4),cp1y=CY+(r*.6)*Math.sin(a-.4);
+    const cp2x=CX+(r*.6)*Math.cos(a+.4),cp2y=CY+(r*.6)*Math.sin(a+.4);
+    const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d",`M${CX},${CY} Q${cp1x},${cp1y} ${px},${py} Q${cp2x},${cp2y} ${CX},${CY}`);
+    path.setAttribute("fill","url(#petalGrad)");
+    path.setAttribute("stroke","#B8860B");path.setAttribute("stroke-width","0.5");
+    path.setAttribute("opacity","0.85");
+    g.appendChild(path);
+  }
+  const c1=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  c1.setAttribute("cx",CX);c1.setAttribute("cy",CY);c1.setAttribute("r","7");
+  c1.setAttribute("fill","url(#centerGrad)");c1.setAttribute("stroke","#FFD700");c1.setAttribute("stroke-width","0.8");
+  g.appendChild(c1);
+  const c2=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  c2.setAttribute("cx",CX);c2.setAttribute("cy",CY);c2.setAttribute("r","3.5");
+  c2.setAttribute("fill","#FFD700");c2.setAttribute("opacity","0.9");
+  g.appendChild(c2);
+}
+
+function drawHands(now,activeHourIdx){
+  const sec=now.getSeconds(),min=now.getMinutes(),hr=now.getHours()%12;
+  const hAngle=(hr+min/60)*30-90;
+  const mAngle=(min+sec/60)*6-90;
+  const sAngle=sec*6-90;
+
+  // Hour hand
+  const hg=document.getElementById("hour-hand");
+  hg.innerHTML="";
+  const htip=pt(hAngle,78),hb1=pt(hAngle+90,7),hb2=pt(hAngle-90,7),htail=pt(hAngle+180,18);
+  const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+  poly.setAttribute("points",`${hb1.x},${hb1.y} ${htip.x},${htip.y} ${hb2.x},${hb2.y} ${htail.x},${htail.y}`);
+  poly.setAttribute("fill","#CC7700");poly.setAttribute("stroke","#FFD700");poly.setAttribute("stroke-width","0.8");
+  hg.appendChild(poly);
+  const hcirc=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  hcirc.setAttribute("cx",htip.x);hcirc.setAttribute("cy",htip.y);hcirc.setAttribute("r","4");
+  hcirc.setAttribute("fill","#FFD700");hcirc.setAttribute("opacity","0.9");
+  hg.appendChild(hcirc);
+
+  // Minute hand
+  const mg=document.getElementById("minute-hand");
+  mg.innerHTML="";
+  const mtip=pt(mAngle,105),mb1=pt(mAngle+90,4),mb2=pt(mAngle-90,4),mtail=pt(mAngle+180,14);
+  const mpoly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+  mpoly.setAttribute("points",`${mb1.x},${mb1.y} ${mtip.x},${mtip.y} ${mb2.x},${mb2.y} ${mtail.x},${mtail.y}`);
+  mpoly.setAttribute("fill","#8B6914");mpoly.setAttribute("stroke","#B8860B");mpoly.setAttribute("stroke-width","0.6");
+  mg.appendChild(mpoly);
+
+  // Second hand
+  const sg=document.getElementById("second-hand");
+  sg.innerHTML="";
+  const stip=pt(sAngle,118),stail=pt(sAngle+180,22);
+  const sl=document.createElementNS("http://www.w3.org/2000/svg","line");
+  sl.setAttribute("x1",CX);sl.setAttribute("y1",CY);sl.setAttribute("x2",stip.x);sl.setAttribute("y2",stip.y);
+  sl.setAttribute("stroke","#CC4400");sl.setAttribute("stroke-width","1.2");
+  sg.appendChild(sl);
+  const sl2=document.createElementNS("http://www.w3.org/2000/svg","line");
+  sl2.setAttribute("x1",CX);sl2.setAttribute("y1",CY);sl2.setAttribute("x2",stail.x);sl2.setAttribute("y2",stail.y);
+  sl2.setAttribute("stroke","#CC4400");sl2.setAttribute("stroke-width","2");
+  sg.appendChild(sl2);
+  const sc1=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  sc1.setAttribute("cx",CX);sc1.setAttribute("cy",CY);sc1.setAttribute("r","4.5");
+  sc1.setAttribute("fill","#1A0E00");sc1.setAttribute("stroke","#FFD700");sc1.setAttribute("stroke-width","1");
+  sg.appendChild(sc1);
+  const sc2=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  sc2.setAttribute("cx",CX);sc2.setAttribute("cy",CY);sc2.setAttribute("r","2");
+  sc2.setAttribute("fill","#FFD700");
+  sg.appendChild(sc2);
+}
+
+function buildSwaraButtons(){
+  const wrap=document.getElementById("swara-buttons");
+  wrap.innerHTML="";
+  SWARAS.forEach((sw,i)=>{
+    const btn=document.createElement("button");
+    btn.className="swara-btn";
+    btn.id="sbtn-"+i;
+    btn.textContent=sw.short;
+    btn.addEventListener("mousedown",()=>{
+      btn.classList.add("active");
+      playSwara(sw.freq,1.0);
+      setTimeout(()=>btn.classList.remove("active"),600);
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function updateSwaraButtons(activeIdx){
+  SWARAS.forEach((sw,i)=>{
+    const btn=document.getElementById("sbtn-"+i);
+    if(!btn)return;
+    btn.classList.toggle("current",(sw.hour%12)===activeIdx);
+  });
+}
+
+function updateSwaraPanel(sw,timeStr){
+  document.getElementById("swara-name-big").textContent=sw.short;
+  document.getElementById("swara-full").textContent=sw.full;
+  document.getElementById("swara-freq").textContent=sw.freq+" Hz";
+  document.getElementById("swara-time").textContent=timeStr;
+}
+
+// ─── Main tick ────────────────────────────────────────────────────────────────
+function getDisplayTime(){
+  if(isDragging&&dragHour!==null){
+    const d=new Date();
+    d.setHours(dragHour,0,0,0);
+    return d;
+  }
+  return new Date();
+}
+
+function tick(){
+  const now=getDisplayTime();
+  const hr=now.getHours()%12;
+  const activeIdx=isDragging&&dragHour!==null?(dragHour%12):(hr%12);
+  const sw=SWARAS.find(s=>(s.hour%12)===activeIdx)||SWARAS[0];
+
+  drawHands(now,activeIdx);
+  drawSwaraLabels(activeIdx);
+  updateSwaraButtons(activeIdx);
+  updateSwaraPanel(sw,now.toLocaleTimeString());
+
+  // Drag hint
+  document.getElementById("drag-hint-svg").style.display=isDragging?"none":"block";
+  document.getElementById("drag-hint").style.display=isDragging?"block":"none";
+
+  // Hour boundary chime
+  if(!isDragging){
+    const realNow=new Date();
+    const rh=realNow.getHours()%12;
+    if(prevHour!==null&&prevHour!==rh){
+      const chSw=SWARAS.find(s=>(s.hour%12)===rh);
+      if(chSw)playSwara(chSw.freq,1.5);
+    }
+    prevHour=rh;
+  }
+
+  // Alarm check
+  if(alarmActive&&!alarmFiring&&!isDragging){
+    const rn=new Date();
+    const rh=rn.getHours()%12,rm=rn.getMinutes(),rs=rn.getSeconds();
+    if(rh===(alarmHour%12)&&rm===0&&rs===0){
+      triggerAlarm();
+    }
+  }
+}
+
+// ─── Alarm ────────────────────────────────────────────────────────────────────
+function triggerAlarm(){
+  alarmFiring=true;
+  const sw=SWARAS.find(s=>(s.hour%12)===(alarmHour%12))||SWARAS[0];
+  const overlay=document.getElementById("alarm-overlay");
+  document.getElementById("alarm-swara-big").textContent=sw.short;
+  document.getElementById("alarm-swara-full").textContent=sw.full;
+  document.getElementById("alarm-swara-freq").textContent=sw.freq+" Hz";
+  document.getElementById("alarm-time-display").textContent=(alarmHour===0?12:alarmHour)+":00";
+  updateSnoozeDisplay();
+  overlay.classList.add("show");
+  scheduleAlarmLoop();
+}
+
+function scheduleAlarmLoop(){
+  const hIdx=alarmHour!==null?(alarmHour%12):0;
+  function playOnce(){
+    playAlarmPhrase(hIdx,()=>{
+      if(alarmFiring){
+        alarmPhraseTimer=setTimeout(playOnce,1200);
+      }
+    });
+  }
+  playOnce();
+}
+
+function updateSnoozeDisplay(){
+  const el=document.getElementById("alarm-snooze-count");
+  if(snoozeCount>0){
+    el.style.display="block";
+    el.textContent="Snoozed "+snoozeCount+"× already";
+  } else {
+    el.style.display="none";
+  }
+}
+
+function handleSnooze(){
+  clearTimeout(alarmPhraseTimer);
+  clearTimeout(snoozeTimer);
+  alarmFiring=false;
+  snoozeCount++;
+  document.getElementById("alarm-overlay").classList.remove("show");
+  snoozeTimer=setTimeout(()=>triggerAlarm(),5*60*1000);
+}
+
+function handleStop(){
+  clearTimeout(alarmPhraseTimer);
+  clearTimeout(snoozeTimer);
+  alarmFiring=false;
+  alarmActive=false;
+  snoozeCount=0;
+  document.getElementById("alarm-overlay").classList.remove("show");
+  updateAlarmDisplay();
+}
+
+function cancelAlarm(){
+  clearTimeout(alarmPhraseTimer);
+  clearTimeout(snoozeTimer);
+  alarmFiring=false;
+  alarmActive=false;
+  alarmHour=null;
+  snoozeCount=0;
+  document.getElementById("alarm-overlay").classList.remove("show");
+  updateAlarmDisplay();
+}
+
+function updateAlarmDisplay(){
+  const disp=document.getElementById("alarm-display");
+  if(alarmActive&&alarmHour!==null){
+    const sw=SWARAS.find(s=>(s.hour%12)===(alarmHour%12))||SWARAS[0];
+    document.getElementById("alarm-info-swara").textContent=sw.short;
+    document.getElementById("alarm-info-time").textContent=(alarmHour===0?12:alarmHour)+":00";
+    document.getElementById("alarm-info-snooze").textContent=snoozeCount>0?"zzz×"+snoozeCount:"";
+    disp.classList.add("show");
+  } else {
+    disp.classList.remove("show");
+  }
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+function handlePlaySwara(){
+  const now=getDisplayTime();
+  const hr=now.getHours()%12;
+  const activeIdx=isDragging&&dragHour!==null?(dragHour%12):hr;
+  const sw=SWARAS.find(s=>(s.hour%12)===activeIdx)||SWARAS[0];
+  playSwara(sw.freq,1.5);
+}
+
+function handleSaveTime(){
+  const now=getDisplayTime();
+  const hr=now.getHours()%12;
+  const activeIdx=isDragging&&dragHour!==null?(dragHour%12):hr;
+  const sw=SWARAS.find(s=>(s.hour%12)===activeIdx)||SWARAS[0];
+  savedEntry={time:now.toLocaleTimeString(),swara:sw};
+  playSwara(sw.freq,.8);
+  const toast=document.getElementById("save-toast");
+  toast.textContent="✓ Saved — "+sw.short+" at "+savedEntry.time;
+  toast.style.display="block";
+  setTimeout(()=>toast.style.display="none",1800);
+  const btn=document.getElementById("btn-save");
+  btn.classList.add("flash");
+  setTimeout(()=>btn.classList.remove("flash"),1500);
+}
+
+function handleSetAlarmFromHand(){
+  const now=getDisplayTime();
+  const h=isDragging&&dragHour!==null?dragHour:(now.getHours()%12);
+  alarmHour=h;
+  alarmActive=true;
+  snoozeCount=0;
+  document.getElementById("alarm-input").value=h===0?12:h;
+  document.getElementById("alarm-error").style.display="none";
+  const sw=SWARAS.find(s=>(s.hour%12)===(h%12))||SWARAS[0];
+  playSwara(sw.freq,.6);
+  updateAlarmDisplay();
+}
+
+function handleAlarmSet(){
+  const val=document.getElementById("alarm-input").value.trim();
+  const errEl=document.getElementById("alarm-error");
+  const simple=/^(\d{1,2})$/,withMin=/^(\d{1,2}):(\d{2})$/;
+  let h,m=0;
+  if(simple.test(val)){h=parseInt(val);}
+  else if(withMin.test(val)){const p=val.match(withMin);h=parseInt(p[1]);m=parseInt(p[2]);}
+  else{errEl.textContent="Enter 1–12, or H:MM (e.g. 7 or 7:30)";errEl.style.display="block";return;}
+  if(h<1||h>12||m<0||m>59){errEl.textContent="Hour 1–12, minute 0–59";errEl.style.display="block";return;}
+  errEl.style.display="none";
+  alarmHour=h%12;
+  alarmActive=true;
+  snoozeCount=0;
+  const sw=SWARAS.find(s=>(s.hour%12)===(alarmHour))||SWARAS[0];
+  playSwara(sw.freq,.7);
+  updateAlarmDisplay();
+}
+
+document.getElementById("alarm-input").addEventListener("keydown",e=>{
+  if(e.key==="Enter")handleAlarmSet();
+});
+
+// ─── Drag ─────────────────────────────────────────────────────────────────────
+const clockSvg=document.getElementById("clock-svg");
+
+function getHourFromPos(e){
+  const rect=clockSvg.getBoundingClientRect();
+  const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  const dx=(e.clientX||e.touches[0].clientX)-cx;
+  const dy=(e.clientY||e.touches[0].clientY)-cy;
+  let angle=Math.atan2(dy,dx)*180/Math.PI+90;
+  if(angle<0)angle+=360;
+  return Math.round(angle/30)%12;
+}
+
+function isNearHourTip(e){
+  const now=new Date();
+  const hr=now.getHours()%12,min=now.getMinutes();
+  const hAngle=(hr+min/60)*30-90;
+  const tip=pt(hAngle,78);
+  const rect=clockSvg.getBoundingClientRect();
+  const scale=rect.width/320;
+  const tipX=rect.left+tip.x*scale,tipY=rect.top+tip.y*scale;
+  const ex=e.clientX||(e.touches&&e.touches[0].clientX)||0;
+  const ey=e.clientY||(e.touches&&e.touches[0].clientY)||0;
+  return Math.hypot(ex-tipX,ey-tipY)<24;
+}
+
+clockSvg.addEventListener("mousedown",e=>{
+  if(isNearHourTip(e)){isDragging=true;dragHour=new Date().getHours()%12;}
+});
+clockSvg.addEventListener("touchstart",e=>{
+  if(isNearHourTip(e.touches[0])){isDragging=true;dragHour=new Date().getHours()%12;}
+},{passive:true});
+
+document.addEventListener("mousemove",e=>{
+  if(!isDragging)return;
+  dragHour=getHourFromPos(e);
+});
+document.addEventListener("touchmove",e=>{
+  if(!isDragging)return;
+  dragHour=getHourFromPos(e);
+},{passive:true});
+
+document.addEventListener("mouseup",()=>{isDragging=false;});
+document.addEventListener("touchend",()=>{isDragging=false;});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+drawTicks();
+drawLotus();
+buildSwaraButtons();
+setInterval(tick,1000);
+tick();
+</script>
+</body>
+</html>
